@@ -27,7 +27,7 @@ typedef struct SLLNode_s {
 
 
 SLLNode* create_node(Cat* cat);
-SLLNode* insert_sorted(SLLNode* head, Cat* cat);
+SLLNode* insert_sorted(Queue* qPtr, SLLNode* head, Cat* cat);
 SLLNode* DelList(SLLNode* head, Cat* cat);
 void freeCat(Cat* cat);
 void initQ(Queue* qPtr);
@@ -50,11 +50,14 @@ SLLNode* create_node(Cat* cat){
 }
 
  // inserts cat into SLL qeue based on arrival time
-SLLNode* insert_sorted(SLLNode* head, Cat* cat){
+SLLNode* insert_sorted(Queue* qPtr, SLLNode* head, Cat* cat){ // should work according to rules but check later anyways
     SLLNode* temp = create_node(cat);
 
     if(head == NULL || head->cat->arrival > cat->arrival){
         temp->next = head;
+        if(head == NULL)
+            qPtr->back = temp;
+        qPtr->front = temp;
         head = temp;
         return head;
     }
@@ -63,6 +66,9 @@ SLLNode* insert_sorted(SLLNode* head, Cat* cat){
 
         while(walker->next && walker->next->cat->arrival < cat->arrival)
             walker = walker->next;
+        
+        if(walker->next == NULL)
+            qPtr->back = temp;
         
         temp->next = walker->next;
         walker->next = temp;
