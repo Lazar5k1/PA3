@@ -25,10 +25,10 @@ typedef struct SLLNode_s {
  } Queue;
 
 
-
-SLLNode* create_node(Cat* cat);
-SLLNode* insert_sorted(Queue* qPtr, SLLNode* head, Cat* cat);
-SLLNode* DelList(SLLNode* head, Cat* cat);
+void createSortedQueue(Queue* qPtr);
+void createCat(int* arrival, char* name, int* duration);
+SLLNode* createNode(Cat* cat);
+void insert_sorted(Queue* qPtr, Cat* cat);
 void freeCat(Cat* cat);
 void initQ(Queue* qPtr);
 int empty(Queue* qPtr);
@@ -36,13 +36,34 @@ int peek(Queue* qPtr);
 
 
 int main(){
+    Queue queue;
+    createSortedQueue(&queue);
 
     return 0;
 }
 
+ // takes input and creates the sorted link list queue
+void createSortedQueue(Queue* qPtr){
+    initQ(qPtr);
+    int arrival = 0;
+    char name[26];
+    int duration;
+    while(arrival != -1){
+        scanf("%d", &arrival);
+        if(arrival == -1)
+            break;
+        
+        scanf("%s %d", name, &duration);
+        createCat(&arrival, name, &duration);
+    }
+}
+
+void createCat(int* arrival, char* name, int* duration){
+
+}
 
  // creates a cat for SLL
-SLLNode* create_node(Cat* cat){
+SLLNode* createNode(Cat* cat){
     SLLNode* temp = malloc(sizeof(SLLNode));
     temp->cat = cat;
     temp->next = NULL;
@@ -50,19 +71,18 @@ SLLNode* create_node(Cat* cat){
 }
 
  // inserts cat into SLL qeue based on arrival time
-SLLNode* insert_sorted(Queue* qPtr, SLLNode* head, Cat* cat){ // should work according to rules but check later anyways
-    SLLNode* temp = create_node(cat);
+void insert_sorted(Queue* qPtr, Cat* cat){ // should work according to rules but check later anyways
+    SLLNode* temp = createNode(cat);
 
-    if(head == NULL || head->cat->arrival > cat->arrival){
-        temp->next = head;
-        if(head == NULL)
+    if(qPtr->front == NULL || qPtr->front->cat->arrival > cat->arrival){
+        temp->next = qPtr->front;
+        if(qPtr->front == NULL)
             qPtr->back = temp;
         qPtr->front = temp;
-        head = temp;
-        return head;
+        qPtr->front = temp;
     }
     else{
-        SLLNode* walker = head;
+        SLLNode* walker = qPtr->front;
 
         while(walker->next && walker->next->cat->arrival < cat->arrival)
             walker = walker->next;
@@ -72,39 +92,6 @@ SLLNode* insert_sorted(Queue* qPtr, SLLNode* head, Cat* cat){ // should work acc
         
         temp->next = walker->next;
         walker->next = temp;
-
-        return head;
-    }
-}
-
- // deletes assigned cat in SLL
-SLLNode* DelList(SLLNode* head, Cat* cat){
-    if(head==NULL)
-        return head;
-    
-    if(head->cat == cat){
-        SLLNode* t = head;
-
-        head = head->next;
-        freeCat(t->cat);
-        free(t);
-        return head;
-    }
-    else{
-        SLLNode* walker = head;
-
-        while(walker->next && walker->next->cat != cat)
-            walker = walker->next;
-
-        if(walker->next == NULL)
-            return head;
-
-        SLLNode* t = walker->next;
-        walker->next = walker->next->next;
-        freeCat(t->cat);
-        free(t);
-
-        return head;
     }
 }
 
@@ -131,12 +118,4 @@ int peek(Queue* qPtr){
         return 0;
     else
         return -1;
-}
- // rn assumes that cat is already made, sorted and its queue is initialized
-int enqueue(Queue* qPtr, SLLNode* temp){
-    if(empty(qPtr)){
-        qPtr->front = temp;
-        qPtr->back = temp;
-        return 1;
-    }
 }
