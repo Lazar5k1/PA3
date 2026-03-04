@@ -27,18 +27,26 @@ typedef struct SLLNode_s {
  //struct for node of exposed cat
  typedef struct Stack_s {
     Cat *cat;
-    Stack *next;
+    struct Stack_s *next;
  } Stack;
 
-
+// function prototypes
 void createQueue(Queue* qPtr);
 void initializeQueue(Queue *qPtr);
 Cat* createCat(int arrival, char* name, int duration);
-SLLNode* createNode(Cat* cat);
 void enqueue(Queue* qPtr, Cat* cat);
+void dequeue(Queue *qPtr);
+Cat* peekQueue(Queue* qPtr);
+int emptyQueue(Queue* qPtr);
+SLLNode* createNode(Cat* cat);
 void freeCat(Cat* cat);
-int empty(Queue* qPtr);
-int peek(Queue* qPtr);
+void simulateDay(Queue* qPtr);
+Stack* createStack();
+void initializeStack(Stack **top);
+void push(Stack **top, Cat* cat);
+void pop(Stack **top);
+Cat* peekStack(Stack *sPtr);
+int emptyStack(Stack *sPtr);
 
 
 int main(){
@@ -51,10 +59,12 @@ int main(){
 
  // takes input and creates the sorted link list queue
 void createQueue(Queue* qPtr){
+    initializeQueue(qPtr);
     int arrival = 0;
     char name[26];
     int duration;
 
+    // stops input when you enter -1
     while(arrival != -1){
         scanf("%d", &arrival);
         
@@ -87,15 +97,17 @@ Cat* createCat(int arrival, char* name, int duration){
 }
 
  // inserts cat into SLL qeue based on arrival time
-void enqueue(Queue* qPtr, Cat* cat){ // should work according to rules but check later anyways
+void enqueue(Queue* qPtr, Cat* cat){
     SLLNode* temp = createNode(cat);
 
+    // if there is no head or the cat's arrival time is the smallest, put it into the front and update front and back pointers
     if(qPtr->front == NULL || qPtr->front->cat->arrival > cat->arrival){
         temp->next = qPtr->front;
         if(qPtr->front == NULL)
             qPtr->back = temp;
         qPtr->front = temp;
     }
+    // searches list to find correct spot where cat belongs
     else{
         SLLNode* walker = qPtr->front;
 
@@ -110,15 +122,22 @@ void enqueue(Queue* qPtr, Cat* cat){ // should work according to rules but check
     }
 }
 
-// 
-Cat* dequeue(){
-
+// moves front of queue to the next in line and frees old node. If entire line is deleted set both front and back to NULL
+void dequeue(Queue *qPtr){
+    if(emptyQueue(qPtr))
+        return;
+    
+    SLLNode *temp = qPtr->front;
+    qPtr->front = qPtr->front->next;
+    if(qPtr->front == NULL)
+        qPtr->back = NULL;
+    free(temp);
 }
 
 // returns front of queue if not empty otherwise returns NULL if empty
 Cat* peekQueue(Queue* qPtr){
     if(qPtr->front)
-        return qPtr->front;
+        return qPtr->front->cat;
     else
         return NULL;
 }
@@ -128,7 +147,7 @@ int emptyQueue(Queue* qPtr){
     return qPtr->front == NULL;
 }
 
- // creates a cat for SLL
+ // creates a node for the sorted queue using input cat
 SLLNode* createNode(Cat* cat){
     SLLNode* temp = malloc(sizeof(SLLNode));
     temp->cat = cat;
@@ -142,54 +161,107 @@ void freeCat(Cat* cat){
     free(cat);
 }
 
-//
+// The heart of the program. Takes sorted queue as input and prints out each cat according to arrival time. Also dequeues, frees, pushes, and pops according to pdff instructions
 void simulateDay(Queue* qPtr){
-    int dayTime = 0;
     int unoTime = 0;
     int dosTime = 0;
     Cat* cat = peekQueue(qPtr);
-    if(cat != NULL)
-        unoTime = cat->arrival;
 
-    cat = peekQueue(qPtr->front->next);
-    if(cat != NULL)
-        dosTime = cat->arrival;
-
-    Stack *top = (Stack*)malloc(sizeof(Stack));
-    top->next = NULL;
-    top->cat = NULL;
+    Stack *top = createStack();
 
     while(!emptyQueue(qPtr)){
-        cat = dequeue(qPtr);
-        if(unoTime <= dosTime && unoTime <= 480){
-            unoTime += cat->duration;
-            dayTime += unoTime;
-
-            printf("Doctor Uno treated %s at %d\n", cat->name, cat->arrival);
+        // get front of queue and dequeue
+        cat = peekQueue(qPtr);
+        dequeue(qPtr);
+        // if cat's duration is 0 it's freed and nothing changes
+        if(cat->duration == 0){
             freeCat(cat);
+            continue;
         }
-        else if (dosTime <= 480){
-            dosTime += cat->duration;
-            dayTime += dosTime;
 
-            printf("Doctor Dos treated %s at %d\n", cat->name, cat->arrival);
-            push(&top, cat);
-            //free stuff later
+        // changes start for edge case where uno should be available twice
+        int unoStart, dosStart;
+        if(unoTime > cat->arrival)
+            unoStart = unoTime;
+        else
+            unoStart = cat->arrival;
+        if(dosTime > cat->arrival)
+            dosStart = dosTime;
+        else
+            dosStart = cat->arrival;
+
+        // if both times match choose uno over dos
+        // prints output of cat based on time left and frees cat
+        if(unoStart <= dosStart){
+            int startTime;
+            if(unoTime > cat->arrival)
+                startTime = unoTime;
+            else
+                startTime = cat->arrival;
+            
+            if(startTime + cat->duration <= 480){
+                unoTime = startTime + cat->duration;
+                printf("Doctor Uno treated %s at %d\n", cat->name, startTime);
+                freeCat(cat);
+            }
+            else{
+                printf("Cannot accommodate %s\n", cat->name);
+                freeCat(cat);
+            }
         }
+        // prints output of cat and pushes cat if treated, if not it's freed
         else{
-            printf("Cannot accommodate %s\n", cat->name);
-            freeCat(cat);
+            int startTime;
+            if(dosTime > cat->arrival)
+                startTime = dosTime;
+            else
+                startTime = cat->arrival;
+
+            if(startTime + cat->duration <= 480){
+                printf("Doctor Dos treated %s at %d\n", cat->name, startTime);
+                dosTime = startTime + cat->duration;
+                push(&top, cat);
+            }
+            else{
+                printf("Cannot accommodate %s\n", cat->name);
+                freeCat(cat);
+            }
+        }
+    }
+
+    if(emptyStack(top))
+        printf("No Exposed Cats\n");
+    else{
+        printf("Exposed Cats\n");
+        // pops top of stack, prints cat, and frees cat
+        while(!emptyStack(top)){
+        cat = peekStack(top);
+        pop(&top);
+        printf("%s\n", cat->name);
+        freeCat(cat);
         }
     }
 }
+
+// Creates the first node of the stack (create and initialize are kind of redudnant here but they get the job done for the pdf)
+Stack* createStack(){
+    Stack* top = NULL;
+    initializeStack(&top);
+    return top;
+}
+
+// initializes top of the stack
+void initializeStack(Stack **top){
+    *top = NULL;
+}
+
 // pushes an exposed cat onto the stack
 void push(Stack **top, Cat* cat){
     Stack* temp = (Stack*)malloc(sizeof(Stack));
-    temp->cat = cat;
 
-    if(temp){
-        if(!(*top))
-            temp->next = *top;
+    if(temp != NULL){
+        temp->cat = cat;
+        temp->next = *top;
         *top = temp;
     }
 }
@@ -199,6 +271,19 @@ void pop(Stack **top){
     if(!(*top))
         return;
     Stack *temp = *top;
-    (*top)->next = (*top)->next->next;
+    (*top) = (*top)->next;
     free(temp);
+}
+
+// returns cat on top of the stack
+Cat* peekStack(Stack *sPtr){
+    if(sPtr)
+        return sPtr->cat;
+    else
+        return NULL;
+}
+
+// returns 1 if stack pointer (the top in this program) is NULL
+int emptyStack(Stack *sPtr){
+    return sPtr == NULL;
 }
